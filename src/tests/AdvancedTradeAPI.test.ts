@@ -1,14 +1,14 @@
-import AdvancedTradeAPI from '../AdvancedTradeAPI';
-import axios from 'axios';
+import AdvancedTradeAPI from "../AdvancedTradeAPI";
+import axios from "axios";
 
-jest.mock('axios');
+jest.mock("axios");
 
-describe('AdvancedTradeAPI', () => {
-    const accessKey = 'accessKey';
+describe("AdvancedTradeAPI", () => {
+    const accessKey = "accessKey";
     // mock private key
     const privateKey = "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIOu7JX2739trJFvPwM5s4CrV+bgy+NLjyKzHT08nikTgoAoGCCqGSM49\nAwEHoUQDQgAEp9HjIcFW7C23hLWPnEvOITzmwDgMNYigf0jU/jeJKjEE+eJcILz/\nwKhCE4/O0cMiFRqRVrmB8u3yuAEY2ozA2Q==\n-----END EC PRIVATE KEY-----\n";
-    const product_id = 'product_id';
-    const url = 'example.com';
+    const product_id = "product_id";
+    const url = "example.com";
 
 
     let api: AdvancedTradeAPI;
@@ -21,19 +21,19 @@ describe('AdvancedTradeAPI', () => {
         jest.clearAllMocks();
     });
 
-    describe('createLimitOrderGTC', () => {
-        it('should create a GTC limit order', async () => {
-            const client_order_id = 'client_order_id';
-            const side = 'BUY';
-            const base_size = '10';
-            const limit_price = '100';
+    describe("createLimitOrderGTC", () => {
+        it("should create a GTC limit order", async () => {
+            const client_order_id = "client_order_id";
+            const side = "BUY";
+            const base_size = "10";
+            const limit_price = "100";
 
-            const orderId = 'order123';
+            const orderId = "order123";
 
             // @ts-ignore
             (axios as jest.MockedFunction<typeof axios>).mockResolvedValueOnce({
                 data: {
-                    order_id: 'order123',
+                    order_id: "order123",
                 }
             });
 
@@ -49,11 +49,11 @@ describe('AdvancedTradeAPI', () => {
 
             // Ensuring axios is called with correct parameters
             expect(axios).toHaveBeenCalledWith({
-                method: 'POST',
+                method: "POST",
                 url: `https://${url}/api/v3/brokerage/orders`,
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': expect.any(String),
+                    "Content-Type": "application/json",
+                    "Authorization": expect.any(String),
                 },
                 data: JSON.stringify({
                     client_order_id,
@@ -69,13 +69,13 @@ describe('AdvancedTradeAPI', () => {
             });
         });
 
-        it('should throw an error when order creation fails', async () => {
-            const client_order_id = 'client_order_id';
-            const side = 'BUY';
-            const base_size = '10';
-            const limit_price = '100';
+        it("should throw an error when order creation fails", async () => {
+            const client_order_id = "client_order_id";
+            const side = "BUY";
+            const base_size = "10";
+            const limit_price = "100";
 
-            const errorMessage = 'Failed to create order';
+            const errorMessage = "Failed to create order";
 
             (axios as jest.MockedFunction<typeof axios>).mockRejectedValueOnce(new Error(errorMessage));
 
@@ -88,9 +88,9 @@ describe('AdvancedTradeAPI', () => {
         });
     });
 
-    describe('cancelOrders', () => {
-        it('should cancel orders with specified order_ids', async () => {
-            const order_ids = ['order1', 'order2'];
+    describe("cancelOrders", () => {
+        it("should cancel orders with specified order_ids", async () => {
+            const order_ids = ["order1", "order2"];
 
             const responseData = { success: true };
 
@@ -105,11 +105,11 @@ describe('AdvancedTradeAPI', () => {
             expect(result).toEqual(responseData);
 
             expect(axios).toHaveBeenCalledWith({
-                method: 'POST',
+                method: "POST",
                 url: `https://${url}/api/v3/brokerage/orders/batch_cancel`,
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': expect.any(String),
+                    "Content-Type": "application/json",
+                    "Authorization": expect.any(String),
                 },
                 data: JSON.stringify({
                     order_ids,
