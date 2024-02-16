@@ -1,19 +1,24 @@
 import jwt from "jsonwebtoken";
 import crypto from "node:crypto";
 import axios, {AxiosRequestConfig} from "axios";
+import {IAPIParams} from "./utils";
 
-interface IAPIParams {
-    requestMethod: "GET" | "POST" | "PUT" | "DELETE",
-    url: string,
-    requestPath: string
-}
-
+/**
+ * Provides methods to access the Advanced Trade API
+ */
 class AdvancedTradeAPI {
     private readonly url;
     private readonly accessKey;
     private readonly privateKey;
     public readonly product_id;
 
+    /**
+     *
+     * @param accessKey - Advanced Trade API Access Key.
+     * @param privateKey - Advanced Trade API Private Key.
+     * @param product_id - Coinbase product.
+     * @param url - API url.
+     */
     constructor({accessKey, privateKey, product_id, url}: {accessKey: string, privateKey: string,
         product_id: string, url: string}) {
         this.url = url;
@@ -22,6 +27,13 @@ class AdvancedTradeAPI {
         this.product_id = product_id;
     }
 
+    /**
+     * Create a GTC limit order
+     * @param client_order_id - id to help client keep track of order.
+     * @param side - BUY or SELL.
+     * @param base_size - size of order
+     * @param limit_price - price of order
+     */
     public async createLimitOrderGTC({client_order_id, side, base_size, limit_price}: {
         client_order_id: string, side: "BUY" | "SELL", base_size: string, limit_price: string
     }) : Promise<string> {
@@ -31,6 +43,7 @@ class AdvancedTradeAPI {
             requestPath: "/api/v3/brokerage/orders"
         }
 
+        // get the JWT token
         const token = this.getJWT(params);
 
         const data = JSON.stringify({
@@ -57,6 +70,7 @@ class AdvancedTradeAPI {
 
         try {
             const response = await axios(requestConfig);
+            // return the generated order id
             return response.data.order_id;
         }
         catch(e){
@@ -64,6 +78,10 @@ class AdvancedTradeAPI {
         }
     }
 
+    /**
+     * Cancel orders with specified order_ids
+     * @param order_ids - ids of orders that need to be cancelled
+     */
     public async cancelOrders({order_ids}: { order_ids: string[]}){
         const params: IAPIParams = {
             requestMethod: "POST",
@@ -92,6 +110,11 @@ class AdvancedTradeAPI {
     }
 
 
+    /**
+     * Create a JSON Web Token for API requests
+     * @param params - Requires a requestMethod, endpoint url, and path
+     * @private
+     */
     private getJWT(params: IAPIParams): string {
         const {requestMethod, url, requestPath} = params;
 

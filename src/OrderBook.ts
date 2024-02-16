@@ -3,51 +3,33 @@ import crypto from "node:crypto";
 import WebSocket from "ws";
 import BigNumber from "bignumber.js";
 import {RBTree} from "bintrees";
+import {IChannelEvent, IChannelMessage, IOrder, PriceTreeFactory, Side} from "./utils";
 
-interface IChannelMessage {
-    channel: string;
-    client_id?: string;
-    timestamp: string;
-    sequence_num: number;
-    events: IChannelEvent[];
-}
-
-interface IChannelEvent {
-    type: string;
-    product_id: string;
-    updates?: IOrderUpdate[];
-}
-
-export type Side = 'bid' | 'offer';
-
-interface IOrderUpdate {
-    side: Side;
-    event_time: string;
-    price_level: string;
-    new_quantity: string;
-}
-
-interface IOrder {
-    price: BigNumber,
-    size: BigNumber,
-    side: Side
-}
-
-export function PriceTreeFactory<T extends IOrder>() {
-    return new RBTree<T>( (a: T, b: T) => a.price.comparedTo(b.price) );
-}
-
+/**
+ * OrderBook - maintains a local copy of the level2 orderbook
+ */
 class OrderBook{
     private readonly productId;
     private readonly accessKey;
     private readonly privateKey;
+
     private readonly url;
     public ws: WebSocket;
+
+    // store the bids and offers in a Binary Tree (sorted, to get best bids/offers)
     private readonly bids: RBTree<IOrder>;
     private readonly offers: RBTree<IOrder>;
-    private stopped: boolean;
-    private closed: boolean;
 
+    private stopped: boolean; // if we need to stop maintaining the order book
+    private closed: boolean; // if websocket is closed
+
+    /**
+     *
+     * @param accessKey - Advanced Trade API Access Key.
+     * @param privateKey - Advanced Trade API Private Key.
+     * @param productId - Coinbase product.
+     * @param url - Websocket url.
+     */
     constructor({accessKey, privateKey, productId, url}: {accessKey: string, privateKey: string, productId: string, url: string}) {
         this.url = url;
         this.accessKey = accessKey;
@@ -59,15 +41,22 @@ class OrderBook{
 
         this.stopped = false;
         this.closed = true;
+
+        // connect to websocket
         this.ws = new WebSocket(this.url);
+
+        // start receiving messages
         this.startSync();
     }
 
     public startSync(){
+        //clear the orderbooks
         this.bids.clear();
         this.offers.clear();
+
+        // subscribe to the level2 orderbook channel
         this.ws.on("open", () => {
-            this.heartbeatsSubscribe();
+            this.heartbeatsSubscribe(); // this is needed in case of ill-liquid assets to maintain connection
             this.level2Subscribe();
             console.log("Connected...")
             this.closed = false;
@@ -80,6 +69,7 @@ class OrderBook{
         this.ws.on("close", () => {
             this.closed = true;
             if(!this.stopped){
+                // re-attempt connection
                 setTimeout(() => {
                     console.log("Disconnected. Reattempting in 1 sec...")
                     this.ws = new WebSocket(this.url);
@@ -88,30 +78,40 @@ class OrderBook{
             }
         })
 
-        // TODO: do an error
         this.ws.on("error", () => {
             if(this.ws.readyState !== WebSocket.OPEN && !this.stopped){
-                console.log("Disconnected. Reattempting in 1 sec...")
-                this.ws = new WebSocket(this.url);
-                setTimeout(() => this.startSync(), 1000);
+                // re-attempt connection
+                setTimeout(() => {
+                    console.log("Error. Re-attempting in 1 sec...")
+                    this.ws = new WebSocket(this.url);
+                    this.startSync();
+                }, 1000);
             }
         })
 
     }
 
+    // check if WebSocket is connected
     public isConnected(): boolean{
         return !this.closed;
     }
 
+    // stop maintaining the orderbook
     public stopSync(){
         if(!this.stopped){
+            // Don't need these, kept for readability
             // this.heartbeatsUnsubscribe();
             // this.level2Unsubscribe();
             this.stopped = true;
+
+            // terminate the websocket connection
             this.ws.terminate();
         }
     }
 
+    /**
+     * Get the best bid and offer from teh local order book
+     */
     public getBestBidOffer(): {bid: IOrder | null, offer: IOrder | null} {
         if(this.closed){
             return {bid: null, offer: null};
@@ -129,6 +129,11 @@ class OrderBook{
         return {bid: bestBid, offer: bestOffer};
     }
 
+    /**
+     * Handle incoming websocket level-2 orderbook message
+     * @param data - message string
+     * @private
+     */
     private handleMessage(data: string){
         const message: IChannelMessage = JSON.parse(data);
         if(message.channel === "l2_data"){
@@ -138,14 +143,22 @@ class OrderBook{
         }
     }
 
+    /**
+     * Handle each event in the message from the websocket
+     * @param updates
+     * @private
+     */
     private handleUpdates(updates: IChannelEvent){
         for(const update of updates.updates ?? []){
             const price = BigNumber(update.price_level);
             const size = BigNumber(update.new_quantity);
             const side = update.side;
 
+            // get bid tree or offer tree depending on order
             const tree = this.getTree(side);
             const order:IOrder = {price, size, side};
+
+            // check if order at that price exists
             const existing = tree.find(order);
 
             // it doesn't exist, then insert it
@@ -171,11 +184,21 @@ class OrderBook{
         }
     }
 
+    /**
+     * Get bid tree or offer tree depending on the side
+     * @param side
+     * @private
+     */
     private getTree(side: Side){
         if(side === "bid") return this.bids;
         return this.offers;
     }
 
+    /**
+     * Sign message with token and timestamp to send across websocket
+     * @param message
+     * @private
+     */
     private timestampAndSign(message: { type: string, channel: string, product_ids: string[] }){
         const timestamp = Math.floor(Date.now() / 1000).toString();
         const jwt = this.getJWT();
@@ -183,6 +206,10 @@ class OrderBook{
         return { ...message, jwt: jwt, timestamp: timestamp };
     }
 
+    /**
+     * Subscribe to heartbeats channel
+     * @private
+     */
     private heartbeatsSubscribe(){
         const heartBeatMessage = {
             "type": "subscribe",
@@ -196,6 +223,10 @@ class OrderBook{
         this.ws.send(JSON.stringify(subscribeMsg));
     }
 
+    /**
+     * Unsubscribe from heartbeats channel
+     * @private
+     */
     private heartbeatsUnsubscribe(){
         const heartBeatMessage = {
             "type": "unsubscribe",
@@ -209,6 +240,10 @@ class OrderBook{
         this.ws.send(JSON.stringify(unsubscribeMsg));
     }
 
+    /**
+     * Subscribe to level2 order book channel
+     * @private
+     */
     private level2Subscribe(){
         const l2Message = {
             "type": "subscribe",
@@ -222,6 +257,10 @@ class OrderBook{
         this.ws.send(JSON.stringify(subscribeMsg));
     }
 
+    /**
+     * Unsubscribe to level2 orderbook channel
+     * @private
+     */
     private level2Unsubscribe(){
         const l2Message = {
             "type": "unsubscribe",
@@ -235,6 +274,10 @@ class OrderBook{
         this.ws.send(JSON.stringify(unsubscribeMsg));
     }
 
+    /**
+     * Create token for websocket messages
+     * @private
+     */
     private getJWT() : string {
         const service_name = "public_websocket_api"
         const algorithm = 'ES256';
