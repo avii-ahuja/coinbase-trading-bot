@@ -49,3 +49,8 @@ npm run test
 - Created these binary trees using the factory-method design pattern
 - Comments added using JSDoc
 - Added testing for API calls using Jest
+
+
+A short GIF showcasing the WebSocket connection and attempt to place orders. I didn't have KYC/funds so I could not place orders.
+![GIF](https://media.giphy.com/media/sAOLue9XBSNOhYrsy2/giphy.gif)
+
