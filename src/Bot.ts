@@ -15,7 +15,7 @@ class Bot {
     private stopLoop: boolean;
     private terminate: boolean;
 
-    constructor(productId: string, depth: number, updateInterval: number) {
+    constructor({productId, depth, updateInterval}: {productId: string, depth: number, updateInterval: number}) {
         this.productId = productId;
         this.tradingAPI = new AdvancedTradeAPI({
             accessKey: CREDENTIALS.name,

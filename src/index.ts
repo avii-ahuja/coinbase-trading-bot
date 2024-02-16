@@ -1,17 +1,15 @@
 import Bot from "./Bot";
-import BigNumber from "bignumber.js";
+import 'dotenv/config'
 
-const b = new Bot("BTC-USD", 30, 5);
+const productId = process.env.PRODUCT;
+const depth = process.env.DEPTH;
+const updateInterval = process.env.UPDATE_INTERVAL;
 
-let callAmount = 0;
+const b = new Bot({productId, depth, updateInterval});
+
 process.on("SIGINT", async () => {
-    if(callAmount < 1){
-        console.log("\nStopping gracefully...")
-        await b.stop();
-        callAmount++;
-    }
-    else{
-        process.exit(1);
-    }
+    console.log("\nStopping gracefully...")
+    await b.stop();
 })
-b.start().then(r => {});
+
+b.start().then(_ => {});
