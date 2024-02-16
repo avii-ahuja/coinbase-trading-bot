@@ -1,12 +1,11 @@
 import AdvancedTradeAPI from '../AdvancedTradeAPI';
 import axios from 'axios';
 
-
-// Mocking axios to prevent actual network requests
 jest.mock('axios');
 
 describe('AdvancedTradeAPI', () => {
     const accessKey = 'accessKey';
+    // mock private key
     const privateKey = "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIOu7JX2739trJFvPwM5s4CrV+bgy+NLjyKzHT08nikTgoAoGCCqGSM49\nAwEHoUQDQgAEp9HjIcFW7C23hLWPnEvOITzmwDgMNYigf0jU/jeJKjEE+eJcILz/\nwKhCE4/O0cMiFRqRVrmB8u3yuAEY2ozA2Q==\n-----END EC PRIVATE KEY-----\n";
     const product_id = 'product_id';
     const url = 'example.com';
